@@ -141,6 +141,13 @@ include-directories = ["dependencies/imnodes"]
 condition = "build-framework"
 link-libraries = ["imgui"]
 
+[target.imnodeeditor]
+type = "static"
+sources = ["dependencies/imgui-node-editor/*.cpp"]
+include-directories = ["dependencies/imgui-node-editor"]
+condition = "build-framework"
+link-libraries = ["imgui"]
+
 [target.openvr]
 type = "interface"
 include-directories = ["dependencies/openvr/headers"]
@@ -227,6 +234,7 @@ link-libraries = [
     "imgui",
     "imguizmo",
     "imnodes",
+    "imnodeeditor",
     "minhook",
     "d3d11",
     "glm_static",

@@ -1,5 +1,9 @@
+
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <imgui_node_editor_internal.h>
+#include <imgui_node_editor.h>
 #include <imnodes.h>
 
 #include "../ScriptRunner.hpp"
@@ -409,8 +413,8 @@ void tree_pop() {
     ImGui::TreePop();
 }
 
-void same_line() {
-    ImGui::SameLine();
+void same_line(sol::this_state s, float offset_from_start_x=0.0f, float spacing=-1.0f) {
+    ImGui::SameLine(offset_from_start_x, spacing);
 }
 
 bool is_item_hovered(sol::object flags_obj) {
@@ -533,6 +537,24 @@ void spacing() {
 
 void new_line() {
     ImGui::NewLine();
+}
+
+sol::variadic_results Splitter(sol::this_state s, bool split_vertically, float thickness, float size1, float size2, float min_size1, float min_size2) {
+    const float splitter_long_axis_size = -1.0f;
+    using namespace ImGui;
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    ImGuiID id = window->GetID("##Splitter");
+    ImRect bb;
+    bb.Min = window->DC.CursorPos + (split_vertically ? ImVec2(size1, 0.0f) : ImVec2(0.0f, size1));
+    bb.Max = bb.Min + CalcItemSize(split_vertically ? ImVec2(thickness, splitter_long_axis_size) : ImVec2(splitter_long_axis_size, thickness), 0.0f, 0.0f);
+    auto changed = SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, &size1, &size2, min_size1, min_size2, 0.0f);
+    sol::variadic_results results{};
+    results.push_back(sol::make_object(s, changed));
+    results.push_back(sol::make_object(s, size1));
+    results.push_back(sol::make_object(s, size2));
+
+    return results;
 }
 
 bool collapsing_header(const char* name) {
@@ -927,6 +949,11 @@ bool is_mouse_released(int button) {
 
 bool is_mouse_double_clicked(int button) {
     return ImGui::IsMouseDoubleClicked(button);
+}
+
+void dummy(sol::object size_obj) {
+    auto size = create_imvec2(size_obj);
+    ImGui::Dummy(size);
 }
 
 void indent(int indent_width) {
@@ -1996,6 +2023,207 @@ void cleanup() {
 }
 } // namespace imnodes
 
+namespace api::imnodeed {
+
+namespace ed = ax::NodeEditor;
+
+sol::variadic_results CreateEditor(sol::this_state s, const char* name) {
+    static constexpr float s_DefaultZoomLevels[] =
+    {
+        0.01f, 0.05f, 0.1f, 0.15f, 0.20f, 0.25f, 0.33f, 0.5f, 0.75f, 1.0f, 1.25f, 1.50f, 2.0f, 2.5f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f
+    };
+    static constexpr int s_DefaultZoomLevelCount = std::size(s_DefaultZoomLevels);
+
+    ed::Config config;
+    config.SettingsFile = name;
+    for (int j = 0; j < s_DefaultZoomLevelCount; ++j) {
+        config.CustomZoomLevels.push_back(s_DefaultZoomLevels[j]);
+    }
+    sol::variadic_results results{};
+    ed::Detail::EditorContext* m_Context = reinterpret_cast<ed::Detail::EditorContext*>(ed::CreateEditor(&config));
+
+    results.push_back(sol::make_object(s, m_Context));
+    return results;
+}
+
+void DestroyEditor(sol::object context_obj) {
+    if (!context_obj.is<sol::nil_t>()) {
+        ed::DestroyEditor(context_obj.as<ed::EditorContext*>());
+    }
+}
+
+void SetCurrentEditor(sol::object context_obj) {
+    if (!context_obj.is<sol::nil_t>()) {
+        ed::SetCurrentEditor(context_obj.as<ed::EditorContext*>());
+    }
+    else {
+        ed::SetCurrentEditor(nullptr);
+    }
+}
+
+void Begin(const char* name, sol::object size_obj) {
+    if (name == nullptr) {
+        name = "";
+    }
+
+    const auto size = api::imgui::create_imvec2(size_obj);
+    ed::Begin(name, size);
+}
+
+void End() {
+    ed::End();
+}
+
+void BeginNode(int id) {
+    ed::BeginNode(id);
+}
+
+void BeginPin(int id, int kind) {
+    ed::BeginPin(id, (ed::PinKind)kind);
+}
+
+void EndPin() {
+    ed::EndPin();
+}
+
+void EndNode() {
+    ed::EndNode();
+}
+
+bool Link(int id, int startPinId, int endPinId, sol::object color_obj, sol::object thickness_obj) {    
+    return ed::Link(id, startPinId, endPinId);
+}
+
+void Flow(int linkId, int startPinId, int endPinId, sol::object color_obj, sol::object thickness_obj) {    
+    // IMGUI_NODE_EDITOR_API void Flow(LinkId linkId, FlowDirection direction = FlowDirection::Forward);
+    ed::Flow(linkId);
+}
+
+void Suspend() {
+    ed::Suspend();
+}
+void Resume() {
+    ed::Resume();
+}
+bool IsSuspended() {
+    return ed::IsSuspended();
+}
+bool IsActive() {
+    return ed::IsActive();
+}
+
+bool HasSelectionChanged() {
+    return ed::HasSelectionChanged();
+}
+
+int GetSelectedObjectCount() {
+    return ed::GetSelectedObjectCount();
+}
+
+bool BeginDelete() {
+    return ed::BeginDelete();
+}
+
+sol::variadic_results QueryDeletedLink(sol::this_state s) {    
+    sol::variadic_results results{};
+    ed::LinkId linkId;
+    bool ret = QueryDeletedLink(&linkId);
+
+    results.push_back(sol::make_object(s, ret));
+    results.push_back(sol::make_object(s, linkId.Get()));
+    return results;
+}
+sol::variadic_results QueryDeletedNode(sol::this_state s) {    
+    sol::variadic_results results{};
+    ed::NodeId nodeId;
+    bool ret = QueryDeletedNode(&nodeId);
+
+    results.push_back(sol::make_object(s, ret));
+    results.push_back(sol::make_object(s, nodeId.Get()));
+    return results;
+}
+
+bool AcceptDeletedItem() {
+    return ed::AcceptDeletedItem();
+}
+
+void RejectDeletedItem() {
+    ed::RejectDeletedItem();
+}
+
+void EndDelete() {
+    ed::EndDelete();
+}
+
+void SetNodePosition(int id, sol::object pos_obj) {
+    const auto pos = api::imgui::create_imvec2(pos_obj);
+    ed::SetNodePosition(id, pos);
+}
+
+void SetGroupSize(int id, sol::object size_obj) {
+    const auto pos = api::imgui::create_imvec2(size_obj);
+    ed::SetGroupSize(id, pos);
+}
+
+Vector2f GetNodePosition(int id) {
+    const auto result = ed::GetNodePosition(id);
+
+    return Vector2f{
+        result.x,
+        result.y,
+    };
+}
+
+Vector2f GetNodeSize(int id) {
+    const auto result = ed::GetNodeSize(id);
+
+    return Vector2f{
+        result.x,
+        result.y,
+    };
+}
+
+void CenterNodeOnScreen(int id) {
+    ed::CenterNodeOnScreen(id);
+}
+
+void SetNodeZPosition(int id, float z) {
+    ed::SetNodeZPosition(id, z);
+}
+
+float GetNodeZPosition(int id) {
+    return ed::GetNodeZPosition(id);
+}
+
+void RestoreNodeState(int id) {
+    return ed::RestoreNodeState(id);
+}
+
+void EnableShortcuts(bool enable) {
+    ed::EnableShortcuts(enable);
+}
+
+auto GetHoveredNode() {
+    auto id = ed::GetHoveredNode();
+    return id.Get();
+}
+
+sol::variadic_results IsNodeHovered(sol::this_state s) {    
+    sol::variadic_results results{};
+    ed::NodeId nodeId = ed::GetHoveredNode();
+    bool ret = false;
+    long long id = 0;
+    if (nodeId) {
+        ret = true;
+        id = nodeId.Get();
+    }
+    results.push_back(sol::make_object(s, ret));
+    results.push_back(sol::make_object(s, id));
+    return results;
+}
+
+}
+
 void bindings::open_imgui(ScriptState* s) {
     auto& lua = s->lua();
     auto imgui = lua.create_table();
@@ -2038,6 +2266,7 @@ void bindings::open_imgui(ScriptState* s) {
     imgui["separator"] = api::imgui::separator;
     imgui["spacing"] = api::imgui::spacing;
     imgui["new_line"] = api::imgui::new_line;
+    imgui["Splitter"] = api::imgui::Splitter;
     imgui["collapsing_header"] = api::imgui::collapsing_header;
     imgui["load_font"] = api::imgui::load_font;
     imgui["push_font"] = api::imgui::push_font;
@@ -2065,6 +2294,7 @@ void bindings::open_imgui(ScriptState* s) {
     imgui["is_mouse_clicked"] = api::imgui::is_mouse_clicked;
     imgui["is_mouse_released"] = api::imgui::is_mouse_released;
     imgui["is_mouse_double_clicked"] = api::imgui::is_mouse_double_clicked;
+    imgui["dummy"] = api::imgui::dummy;
     imgui["indent"] = api::imgui::indent;
     imgui["unindent"] = api::imgui::unindent;
     imgui["begin_tooltip"] = api::imgui::begin_tooltip;
@@ -2323,4 +2553,48 @@ void bindings::open_imgui(ScriptState* s) {
     imnodes["get_selected_links"] = &api::imnodes::get_selected_links;
 
     lua["imnodes"] = imnodes;
+
+    auto imnodeed = lua.create_table();
+    imnodeed["CreateEditor"] = &api::imnodeed::CreateEditor;
+    imnodeed["DestroyEditor"] = &api::imnodeed::DestroyEditor;
+    imnodeed["SetCurrentEditor"] = &api::imnodeed::SetCurrentEditor;
+    imnodeed["Begin"] = &api::imnodeed::Begin;
+    imnodeed["End"] = &api::imnodeed::End;
+    imnodeed["BeginNode"] = &api::imnodeed::BeginNode;
+    imnodeed["BeginPin"] = &api::imnodeed::BeginPin;
+    imnodeed["EndPin"] = &api::imnodeed::EndPin;
+    imnodeed["EndNode"] = &api::imnodeed::EndNode;
+
+    imnodeed["Link"] = &api::imnodeed::Link;
+    imnodeed["Flow"] = &api::imnodeed::Flow;
+    
+    imnodeed["Suspend"] = &api::imnodeed::Suspend;
+    imnodeed["Resume"] = &api::imnodeed::Resume;
+    imnodeed["IsSuspended"] = &api::imnodeed::IsSuspended;
+    imnodeed["IsActive"] = &api::imnodeed::IsActive;
+    imnodeed["HasSelectionChanged"] = &api::imnodeed::HasSelectionChanged;
+    imnodeed["GetSelectedObjectCount"] = &api::imnodeed::GetSelectedObjectCount;
+
+    imnodeed["BeginDelete"] = &api::imnodeed::BeginDelete;
+    imnodeed["QueryDeletedLink"] = &api::imnodeed::QueryDeletedLink;
+    imnodeed["QueryDeletedNode"] = &api::imnodeed::QueryDeletedNode;
+    imnodeed["AcceptDeletedItem"] = &api::imnodeed::AcceptDeletedItem;
+    imnodeed["RejectDeletedItem"] = &api::imnodeed::RejectDeletedItem;
+    imnodeed["EndDelete"] = &api::imnodeed::EndDelete;
+    
+    imnodeed["SetNodePosition"] = &api::imnodeed::SetNodePosition;
+    imnodeed["SetGroupSize"] = &api::imnodeed::SetGroupSize;
+    imnodeed["GetNodePosition"] = &api::imnodeed::GetNodePosition;
+    imnodeed["GetNodeSize"] = &api::imnodeed::GetNodeSize;
+    imnodeed["CenterNodeOnScreen"] = &api::imnodeed::CenterNodeOnScreen;
+    imnodeed["SetNodeZPosition"] = &api::imnodeed::SetNodeZPosition;
+    imnodeed["GetNodeZPosition"] = &api::imnodeed::GetNodeZPosition;
+    imnodeed["RestoreNodeState"] = &api::imnodeed::RestoreNodeState;
+    
+    imnodeed["EnableShortcuts"] = &api::imnodeed::EnableShortcuts;
+    
+    imnodeed["GetHoveredNode"] = &api::imnodeed::GetHoveredNode;
+    imnodeed["IsNodeHovered"] = &api::imnodeed::IsNodeHovered;
+    
+    lua["imnodeed"] = imnodeed;
 }

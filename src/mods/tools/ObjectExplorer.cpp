@@ -2232,7 +2232,13 @@ void ObjectExplorer::generate_sdk() {
     m_sdk_dump_stage = SdkDumpStage::GENERATE_SDK;
     
     genny::ida::transform(sdk);
-    sdk.generate("sdk_ida");
+    try {
+        sdk.generate("sdk_ida");
+        spdlog::info("IDA SDK Generated.");
+    }
+    catch(std::exception& e) {
+        spdlog::info("Failed to Generate IDA SDK: {}", e.what());
+    }
 
     // Free a couple gigabytes of no longer used memory
     g_stypedb.clear();

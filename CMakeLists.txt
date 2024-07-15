@@ -118,7 +118,7 @@ message(STATUS "Fetching safetyhook (b046e123dc69821f2c375161e0adef3c6d9c9db4)..
 FetchContent_Declare(
 	safetyhook
 	GIT_REPOSITORY
-		https://github.com/cursey/safetyhook
+		https://github.com/cursey/safetyhook.git
 	GIT_TAG
 		b046e123dc69821f2c375161e0adef3c6d9c9db4
 )
@@ -361,6 +361,43 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 	)
 
 	target_link_libraries(imnodes PUBLIC
+		imgui
+	)
+
+	unset(CMKR_TARGET)
+	unset(CMKR_SOURCES)
+endif()
+
+# Target imnodeeditor
+if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
+	set(CMKR_TARGET imnodeeditor)
+	set(imnodeeditor_SOURCES "")
+
+	list(APPEND imnodeeditor_SOURCES
+		"dependencies/imgui-node-editor/crude_json.cpp"
+		"dependencies/imgui-node-editor/imgui_canvas.cpp"
+		"dependencies/imgui-node-editor/imgui_node_editor.cpp"
+		"dependencies/imgui-node-editor/imgui_node_editor_api.cpp"
+	)
+
+	list(APPEND imnodeeditor_SOURCES
+		cmake.toml
+	)
+
+	set(CMKR_SOURCES ${imnodeeditor_SOURCES})
+	add_library(imnodeeditor STATIC)
+
+	if(imnodeeditor_SOURCES)
+		target_sources(imnodeeditor PRIVATE ${imnodeeditor_SOURCES})
+	endif()
+
+	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${imnodeeditor_SOURCES})
+
+	target_include_directories(imnodeeditor PUBLIC
+		"dependencies/imgui-node-editor"
+	)
+
+	target_link_libraries(imnodeeditor PUBLIC
 		imgui
 	)
 
@@ -2368,6 +2405,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -2575,6 +2613,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -4441,6 +4480,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -4648,6 +4688,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -4855,6 +4896,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -7552,6 +7594,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -7759,6 +7802,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -8797,6 +8841,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -9833,6 +9878,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -10871,6 +10917,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -11909,6 +11956,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static
@@ -12947,6 +12995,7 @@ if(REF_BUILD_FRAMEWORK AND CMAKE_SIZEOF_VOID_P EQUAL 8) # build-framework
 		imgui
 		imguizmo
 		imnodes
+		imnodeeditor
 		minhook
 		d3d11
 		glm_static

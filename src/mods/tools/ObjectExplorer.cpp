@@ -2514,9 +2514,14 @@ void ObjectExplorer::generate_sdk(const bool skip_sdkgenny) {
     spdlog::info("Generating IDA SDK...");
     m_sdk_dump_stage = SdkDumpStage::GENERATE_SDK;
 
-    if (!skip_sdkgenny) {
-        genny::ida::transform(sdk);
-        sdk.generate("sdk_ida");
+    try {
+        if (!skip_sdkgenny) {
+	        genny::ida::transform(sdk);
+	        sdk.generate("sdk_ida");
+	    }
+    }
+    catch(std::exception& e) {
+        spdlog::info("Failed to Generate IDA SDK: {}", e.what());
     }
 
     // Free a couple gigabytes of no longer used memory

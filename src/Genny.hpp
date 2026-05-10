@@ -21,6 +21,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
+#include <string>
+#include <locale>
+#include <cstdint>
 
 namespace genny {
 
@@ -33,6 +37,24 @@ class Class;
 class Enum;
 class Variable;
 class Function;
+
+
+template<class Facet>
+struct deletable_facet : Facet
+{
+    template<class... Args>
+    deletable_facet(Args&&... args) : Facet(std::forward<Args>(args)...) {}
+    ~deletable_facet() {}
+};
+std::filesystem::path path_for_name(const char* mbStr) {
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)    
+    std::wstring_convert<deletable_facet<std::codecvt<char16_t, char, std::mbstate_t>>, char16_t> conv16;
+    std::u16string str16 = conv16.from_bytes(mbStr);       
+    return std::filesystem::path(str16);
+#else
+    return std::filesystem::path(mbStr);
+#endif
+}
 
 class Indent : public std::streambuf {
 public:
@@ -1315,10 +1337,10 @@ protected:
                 continue;
             }
 
-            path /= owner->file_name();
+            path /= path_for_name(owner->file_name().c_str());
         }
 
-        path /= obj->file_name();
+        path /= path_for_name(obj->file_name().c_str());
 
         return path;
     }

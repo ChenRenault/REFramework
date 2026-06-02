@@ -1326,6 +1326,62 @@ protected:
     std::string m_source_extension{".cpp"};
     bool m_generate_namespaces{true};
 
+    static std::string lowercase_ascii(std::string name) {
+        for (auto& c : name) {
+            if (c >= 'A' && c <= 'Z') {
+                c += 'a' - 'A';
+            }
+        }
+
+        return name;
+    }
+
+    std::string collision_safe_file_name(Object* obj) const {
+        auto file_name = obj->file_name();
+        auto owner = obj->direct_owner();
+
+        if (owner == nullptr) {
+            return file_name;
+        }
+
+        std::vector<Object*> candidates{};
+        const auto add_candidates = [&](const auto& objects) {
+            candidates.insert(candidates.end(), objects.begin(), objects.end());
+        };
+
+        if (obj->is_a<Namespace>()) {
+            add_candidates(owner->get_all<Namespace>());
+        } else if (obj->is_a<Enum>() || obj->is_a<Struct>()) {
+            add_candidates(owner->get_all<Enum>());
+            add_candidates(owner->get_all<Struct>());
+        } else {
+            return file_name;
+        }
+
+        const auto lowercase_file_name = lowercase_ascii(file_name);
+        candidates.erase(
+            std::remove_if(candidates.begin(), candidates.end(), [&](const auto candidate) {
+                return lowercase_ascii(candidate->file_name()) != lowercase_file_name;
+            }),
+            candidates.end());
+
+        std::stable_sort(candidates.begin(), candidates.end(), [](const auto lhs, const auto rhs) {
+            return lhs->file_name() < rhs->file_name();
+        });
+
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            if (candidates[i] == obj) {
+                if (i > 0) {
+                    file_name += "_case_collision_" + std::to_string(i);
+                }
+
+                break;
+            }
+        }
+
+        return file_name;
+    }
+
     std::filesystem::path path_for_object(Object* obj) const {
         std::filesystem::path path{};
         auto owners = obj->owners<Namespace>();
@@ -1337,10 +1393,10 @@ protected:
                 continue;
             }
 
-            path /= path_for_name(owner->file_name().c_str());
+            path /= path_for_name(collision_safe_file_name(owner).c_str());
         }
 
-        path /= path_for_name(obj->file_name().c_str());
+        path /= path_for_name(collision_safe_file_name(obj).c_str());
 
         return path;
     }

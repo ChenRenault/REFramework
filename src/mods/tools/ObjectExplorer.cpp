@@ -232,13 +232,29 @@ std::vector<std::string> split(const std::string& s, const std::string& token) {
     return out;
 }
 
-// remove stuf like "<", ">" from typenames, replace with "_"
-// anything that would be invalid in a C++ identifier or directory name
+// Replace anything that would be invalid in a C++ identifier or directory name.
+// Dots are namespace separators unless they are part of a generic argument or
+// assembly-qualified name, such as Version=1.0.0.0.
 std::string clean_typename(std::string_view name) {
     std::string out{};
+    size_t nested_type_depth = 0;
+    bool has_assembly_qualification = false;
 
     for (auto&& c : name) {
-        if (c == '<' || c == '>' || c == ' ' || c == ',') {
+        if (c == '<' || c == '[') {
+            ++nested_type_depth;
+        } else if ((c == '>' || c == ']') && nested_type_depth > 0) {
+            --nested_type_depth;
+        } else if (c == ',') {
+            has_assembly_qualification = true;
+        }
+
+        const auto is_ascii_alphanumeric = (c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z')
+            || (c >= '0' && c <= '9');
+        const auto is_namespace_separator = c == '.' && nested_type_depth == 0 && !has_assembly_qualification;
+
+        if (!is_ascii_alphanumeric && c != '_' && !is_namespace_separator) {
             out += '_';
         } else {
             out += c;

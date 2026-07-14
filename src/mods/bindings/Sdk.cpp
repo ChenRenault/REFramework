@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <concepts>
+#include <chrono>
 
 #include <hde64.h>
 
@@ -1785,6 +1786,10 @@ void bindings::open_sdk(ScriptState* s) {
     sdk["float_to_ptr"] = [](float f) {
         uintptr_t n = *(uintptr_t*)&f;
         return *(void**)&f;
+    };
+    sdk["time_ns"] = []() -> int64_t {
+        auto now = std::chrono::steady_clock::now();
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     };
     lua["sdk"] = sdk;
 

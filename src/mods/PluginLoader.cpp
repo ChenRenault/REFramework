@@ -7,6 +7,7 @@
 #include "reframework/API.hpp"
 #include "utility/String.hpp"
 #include "utility/Module.hpp"
+#include "utility/Memory.hpp"
 
 #include "sdk/ResourceManager.hpp"
 #include "sdk/Memory.hpp"
@@ -201,6 +202,32 @@ REFrameworkSDKFunctions g_sdk_functions {
 
         auto runtime_type = ((sdk::RETypeDefinition*)tdef)->get_runtime_type();
         return (REFrameworkManagedObjectHandle)sdk::VM::create_managed_array(runtime_type, size);
+    },
+    [](REFrameworkMethodHandle fn, void* user_data, REFPreHookFnEx pre_fn, REFPostHookFnEx post_fn,
+        bool ignore_jmp) -> unsigned int {
+        return g_hookman.add((sdk::REMethodDefinition*)fn,
+            [fn, user_data, pre_fn](auto& args, auto& arg_tys, uintptr_t ret_addr) {
+                if (pre_fn != nullptr) {
+                    return (HookManager::PreHookResult)pre_fn(fn, user_data, (int)args.size(), (void**)args.data(),
+                        (REFrameworkTypeDefinitionHandle*)arg_tys.data(), ret_addr);
+                }
+
+                return (HookManager::PreHookResult)REFRAMEWORK_HOOK_CALL_ORIGINAL;
+            },
+            [fn, user_data, post_fn](auto& ret_val, auto* ret_ty, uintptr_t ret_addr) {
+                if (post_fn != nullptr) {
+                    post_fn(fn, user_data, (void**)&ret_val, (REFrameworkTypeDefinitionHandle)ret_ty, ret_addr);
+                }
+            },
+            ignore_jmp);
+    },
+    [](REFrameworkMethodHandle fn) {
+        if (fn == nullptr) {
+            return false;
+        }
+
+        const auto function = ((sdk::REMethodDefinition*)fn)->get_function();
+        return function != nullptr && !utility::is_stub_code((uint8_t*)function);
     },
 };
 

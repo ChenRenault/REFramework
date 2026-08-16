@@ -347,6 +347,18 @@ void HookManager::create_jitted_facilitator(std::unique_ptr<HookManager::HookedF
     a.push(r12); // push storage
     a.mov(r12, r10); // storage ptr.
 
+    // Preserve both Windows x64 argument register banks across the pre-hook.
+    // RE Engine can use the GP and XMM register for the same argument slot at
+    // once (for example, ButtonCommand.checkCommand passes its float argument
+    // in XMM3 and a hidden value-type return buffer in R9). The editable args
+    // array only represents the declared parameter, so restoring only the
+    // selected bank corrupts the hidden value in the other bank.
+    a.push(rcx);
+    a.push(rdx);
+    a.push(r8);
+    a.push(r9);
+    store_xmm_args();
+
     a.mov(rbx, rsp);
     a.sub(rsp, STACK_STORAGE_AMOUNT);
     a.and_(rsp, -16);
@@ -360,6 +372,13 @@ void HookManager::create_jitted_facilitator(std::unique_ptr<HookManager::HookedF
     
     // restore rsp
     a.mov(rsp, rbx);
+
+    pop_xmm_args();
+    a.pop(r9);
+    a.pop(r8);
+    a.pop(rdx);
+    a.pop(rcx);
+
     a.mov(r10, r12); // storage ptr.
 
     a.pop(r12); // restore storage

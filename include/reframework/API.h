@@ -7,7 +7,7 @@
 #endif
 
 #define REFRAMEWORK_PLUGIN_VERSION_MAJOR 1
-#define REFRAMEWORK_PLUGIN_VERSION_MINOR 15
+#define REFRAMEWORK_PLUGIN_VERSION_MINOR 16
 #define REFRAMEWORK_PLUGIN_VERSION_PATCH 0
 
 #define REFRAMEWORK_RENDERER_D3D11 0
@@ -387,6 +387,10 @@ typedef struct {
 
 typedef int (*REFPreHookFn)(int argc, void** argv, REFrameworkTypeDefinitionHandle* arg_tys, unsigned long long ret_addr);
 typedef void (*REFPostHookFn)(void** ret_val, REFrameworkTypeDefinitionHandle ret_ty, unsigned long long ret_addr);
+typedef int (*REFPreHookFnEx)(REFrameworkMethodHandle method, void* user_data, int argc, void** argv,
+    REFrameworkTypeDefinitionHandle* arg_tys, unsigned long long ret_addr);
+typedef void (*REFPostHookFnEx)(REFrameworkMethodHandle method, void* user_data, void** ret_val,
+    REFrameworkTypeDefinitionHandle ret_ty, unsigned long long ret_addr);
 
 typedef struct {
     REFrameworkTDBHandle (*get_tdb)();
@@ -412,6 +416,12 @@ typedef struct {
     void (*deallocate)(void*);
 
     REFrameworkManagedObjectHandle (*create_managed_array)(REFrameworkTypeDefinitionHandle, unsigned int size);
+
+    /* Added in 1.16. Keep new entries at the end to preserve the ABI prefix used by older plugins.
+       add_hook_ex does not own user_data; it must remain valid until the hook is removed. */
+    unsigned int (*add_hook_ex)(REFrameworkMethodHandle method, void* user_data, REFPreHookFnEx pre_fn,
+        REFPostHookFnEx post_fn, bool ignore_jmp);
+    bool (*is_method_hookable)(REFrameworkMethodHandle method);
 } REFrameworkSDKFunctions;
 
 /* these are NOT pointers to the actual objects */

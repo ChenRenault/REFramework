@@ -752,6 +752,16 @@ public:
             return fn(*this, pre_fn, post_fn, ignore_jmp);
         }
 
+        unsigned int add_hook_ex(void* user_data, REFPreHookFnEx pre_fn, REFPostHookFnEx post_fn, bool ignore_jmp) const {
+            static const auto fn = API::s_instance->sdk()->functions->add_hook_ex;
+            return fn(*this, user_data, pre_fn, post_fn, ignore_jmp);
+        }
+
+        bool is_hookable() const {
+            static const auto fn = API::s_instance->sdk()->functions->is_method_hookable;
+            return fn(*this);
+        }
+
         void remove_hook(unsigned int hook_id) const {
 
             static const auto fn = API::s_instance->sdk()->functions->remove_hook;
